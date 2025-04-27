@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: GPL-2.0+
+#
+# Copyright (C) 2025 Texas Instruments Incorporated - https://www.ti.com/
+#
+
+if TARGET_J722S_R5_T3_GEM_O1 || TARGET_J722S_A53_T3_GEM_O1
+
+config SYS_BOARD
+       default "t3-gem-o1"
+
+config SYS_VENDOR
+       default "t3"
+
+config SYS_CONFIG_NAME
+       default "t3_gem_o1"
+
+source "board/ti/common/Kconfig"
+
+endif
+
+if TARGET_J722S_R5_T3_GEM_O1
+
+config SPL_LDSCRIPT
+	default "arch/arm/mach-omap2/u-boot-spl.lds"
+
+endif

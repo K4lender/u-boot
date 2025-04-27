@@ -1,0 +1,7 @@
+T3-GEM-O1 BOARD
+M:      Bayram Akay <bakay@t3gemstone.org>
+S:	Maintained
+F:	board/t3/t3-gem-o1/
+F:	include/configs/t3_gem_o1.h
+F:	configs/am67a_t3_gem_o1_r5_defconfig
+F:	configs/am67a_t3_gem_o1_a53_defconfig
