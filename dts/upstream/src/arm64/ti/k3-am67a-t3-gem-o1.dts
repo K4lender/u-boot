@@ -19,6 +19,7 @@
 	aliases {
 		serial0 = &wkup_uart0;
 		serial2 = &main_uart0;
+		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
 		rtc0 = &rtc;
 	};
@@ -369,6 +370,14 @@
 		compatible = "dallas,ds1340";
 		reg = <0x68>;
 	};
+};
+
+&sdhci0 {
+	/*eMMC*/
+	status = "okay";
+	ti,driver-strength-ohm = <50>;
+	disable-wp;
+	bootph-all;
 };
 
 &sdhci1 {

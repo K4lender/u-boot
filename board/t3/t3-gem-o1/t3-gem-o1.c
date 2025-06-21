@@ -26,6 +26,16 @@ int board_init(void)
 	return 0;
 }
 
+#if defined(CONFIG_SPL_LOAD_FIT)
+int board_fit_config_name_match(const char *name)
+{
+	if (!strcmp(name, "k3-am67a-t3-gem-o1"))
+		return 0;
+
+	return -1;
+}
+#endif
+
 int dram_init(void)
 {
 	return fdtdec_setup_mem_size_base();
