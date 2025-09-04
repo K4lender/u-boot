@@ -255,15 +255,41 @@ static u32 __get_primary_bootmedia(u32 devstat)
 	return bootmode;
 }
 
+bool is_bootparam_valid(void)
+{
+	u32 bootmode = *(u32 *)(K3_BOOT_PARAM_TABLE_INDEX_OCRAM);
+	return bootmode < K3_INVALID_BOOTMODE;
+}
+
 u32 spl_boot_device(void)
 {
 	u32 devstat = readl(CTRLMMR_MAIN_DEVSTAT);
+	u32 bootmode = *(u32 *)(K3_BOOT_PARAM_TABLE_INDEX_OCRAM);
 	u32 bootmedia;
 
-	if (bootindex == K3_PRIMARY_BOOTMODE)
-		bootmedia = __get_primary_bootmedia(devstat);
+	if (is_bootparam_valid())
+	{
+		switch (bootmode)
+		{
+			case K3_PRIMARY_BOOTMODE:
+				bootmedia = __get_primary_bootmedia(devstat);
+				break;
+			case K3_BACKUP_BOOTMODE:
+				bootmedia = __get_backup_bootmedia(devstat);
+				break;
+			case K3_RAM_BOOTMODE:
+				bootmedia = BOOT_DEVICE_RAM;
+				break;
+		}
+	}
 	else
-		bootmedia = __get_backup_bootmedia(devstat);
+	{
+		if (bootindex == K3_PRIMARY_BOOTMODE)
+			bootmedia = __get_primary_bootmedia(devstat);
+		else
+			bootmedia = __get_backup_bootmedia(devstat);
+	}
+
 
 	debug("j722s_init: %s: devstat = 0x%x bootmedia = 0x%x bootindex = %d\n",
 	      __func__, devstat, bootmedia, bootindex);
