@@ -49,12 +49,28 @@ int dram_init_banksize(void)
 #if defined(CONFIG_XPL_BUILD)
 void spl_perform_fixups(struct spl_image_info *spl_image)
 {
+	u32 bootdev;
+
 	if (IS_ENABLED(CONFIG_K3_DDRSS)) {
 		if (IS_ENABLED(CONFIG_K3_INLINE_ECC))
 			fixup_ddr_driver_for_ecc(spl_image);
 	} else {
 		fixup_memory_node(spl_image);
 	}
+
+	bootdev = spl_boot_device();
+
+	void *fdt = (void *)(uintptr_t)spl_image->fdt_addr;
+	if (!fdt)
+		return;
+
+	int chosen = fdt_path_offset(fdt, "/chosen");
+	if (chosen < 0)
+		chosen = fdt_add_subnode(fdt, 0, "chosen");
+	if (chosen < 0)
+		return;
+
+	fdt_setprop_u32(fdt,    chosen, "u-boot,spl-boot-media", bootdev);
 }
 #endif
 
@@ -66,6 +82,53 @@ int board_late_init(void)
 	snprintf(fdtfile, sizeof(fdtfile), "%s.dtb", CONFIG_DEFAULT_DEVICE_TREE);
 
 	env_set("fdtfile", fdtfile);
+
+	const void *fdt = gd->fdt_blob;
+	if (!fdt)
+		return 0;
+
+	int chosen = fdt_path_offset(fdt, "/chosen");
+	if (chosen < 0)
+		return 0;
+
+	int len;
+	const fdt32_t *pinst = fdt_getprop(fdt, chosen, "u-boot,spl-boot-media", &len);
+
+	if (pinst && len == sizeof(fdt32_t)) {
+		u32 boot_media = fdt32_to_cpu(*pinst);
+
+		switch (boot_media)
+		{
+			case 0xFF:
+			{
+				env_set("mmcdev", "0");
+				env_set("bootdev", "eth");
+				break;
+			}
+
+			case 0x08:
+			{
+				// sdcard
+				env_set("mmcdev", "1");
+				env_set("bootdev", "mmc");
+				break;
+			}
+
+			case 0x09:
+			{
+				// emmc
+				env_set("mmcdev", "0");
+				env_set("bootdev", "mmc");
+				break;
+			}
+
+			default:
+			{
+				printf("Unknown boot method: %u\n", boot_media);
+				break;
+			}
+		}
+	}
 
 	return 0;
 }
