@@ -152,11 +152,17 @@
 	};
 
 	vdd_sd_dv: regulator-4 {
-		compatible = "regulator-fixed";
-		regulator-name = "vd_sd_dv";
-		regulator-min-microvolt = <3300000>;
+		compatible = "regulator-gpio";
+		regulator-name = "tlv71033";
+		pinctrl-names = "default";
+		pinctrl-0 = <&vdd_sd_dv_pins_default>;
+		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
+		vin-supply = <&vsys_5v0>;
+		gpios = <&main_gpio1 49 GPIO_ACTIVE_HIGH>;
+		states = <1800000 0x0>,
+			 <3300000 0x1>;
 		bootph-all;
 	};
 
