@@ -79,9 +79,11 @@ int board_late_init(void)
 {
 	char fdtfile[50];
 
-	snprintf(fdtfile, sizeof(fdtfile), "%s.dtb", CONFIG_DEFAULT_DEVICE_TREE);
+	env_set("dfu_alt_info_emmc", "rawemmc raw 0 0x40000000");
+    env_set("dfu_alt_info", env_get("dfu_alt_info_emmc"));
 
-	env_set("fdtfile", fdtfile);
+    snprintf(fdtfile, sizeof(fdtfile), "%s.dtb", CONFIG_DEFAULT_DEVICE_TREE);
+    env_set("fdtfile", fdtfile);
 
 	const void *fdt = gd->fdt_blob;
 	if (!fdt)
