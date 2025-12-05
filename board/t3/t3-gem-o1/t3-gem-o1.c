@@ -18,6 +18,12 @@ void set_dfu_alt_info(char *interface, char *devstr)
 {
 	if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT))
 		env_set("dfu_alt_info", update_info.dfu_string);
+	else {
+        // Tam disk + partition desteği
+        env_set("dfu_alt_info", 
+            "rawemmc raw 0 0x40000000;"
+            "rootfs part 0 1");
+    }
 }
 #endif
 
@@ -77,61 +83,61 @@ void spl_perform_fixups(struct spl_image_info *spl_image)
 #if IS_ENABLED(CONFIG_BOARD_LATE_INIT)
 int board_late_init(void)
 {
-	char fdtfile[50];
+    char fdtfile[50];
 
-	env_set("dfu_alt_info_emmc", "rawemmc raw 0 0x40000000");
+    // DFU alt info - TAM DISK desteği (0x40000000 = ~1GB)
+    env_set("dfu_alt_info_emmc", 
+        "rawemmc raw 0 0x40000000;"
+        "rootfs part 0 1");
+    
     env_set("dfu_alt_info", env_get("dfu_alt_info_emmc"));
+
+    // Otomatik DFU boot - 300 saniye timeout
+    if (!env_get("bootcmd_orig")) {
+        env_set("bootcmd_orig", env_get("bootcmd"));
+    }
+    
+    env_set("bootcmd", 
+        "echo 'T3 GEM O1 - DFU Mode (300s timeout)';"
+        "setenv dfu_alt_info ${dfu_alt_info_emmc};"
+        "dfu 0 mmc 0 300;"
+        "run bootcmd_orig");
+
+    // Boot delay'i 0 yap
+    env_set("bootdelay", "0");
 
     snprintf(fdtfile, sizeof(fdtfile), "%s.dtb", CONFIG_DEFAULT_DEVICE_TREE);
     env_set("fdtfile", fdtfile);
 
-	const void *fdt = gd->fdt_blob;
-	if (!fdt)
-		return 0;
+    uint32_t boot_media = k3_get_boot_media();
 
-	int chosen = fdt_path_offset(fdt, "/chosen");
-	if (chosen < 0)
-		return 0;
+    switch (boot_media)
+    {
+    case 0x08: // sdcard
+    {
+        env_set("mmcdev", "1");
+        env_set("bootdev", "mmc");
+        break;
+    }
 
-	int len;
-	const fdt32_t *pinst = fdt_getprop(fdt, chosen, "u-boot,spl-boot-media", &len);
+    case 0x09: // emmc
+    {
+        env_set("mmcdev", "0");
+        env_set("bootdev", "mmc");
+        break;
+    }
 
-	if (pinst && len == sizeof(fdt32_t)) {
-		u32 boot_media = fdt32_to_cpu(*pinst);
+    case 0x0b: // ethernet
+    {
+        env_set("bootdev", "eth");
+        break;
+    }
 
-		switch (boot_media)
-		{
-			case 0xFF:
-			{
-				env_set("mmcdev", "0");
-				env_set("bootdev", "eth");
-				break;
-			}
+    default:
+        printf("Unsupported boot media: 0x%x\n", boot_media);
+        return -1;
+    }
 
-			case 0x08:
-			{
-				// sdcard
-				env_set("mmcdev", "1");
-				env_set("bootdev", "mmc");
-				break;
-			}
-
-			case 0x09:
-			{
-				// emmc
-				env_set("mmcdev", "0");
-				env_set("bootdev", "mmc");
-				break;
-			}
-
-			default:
-			{
-				printf("Unknown boot method: %u\n", boot_media);
-				break;
-			}
-		}
-	}
-
-	return 0;
+    return 0;
 }
 #endif
