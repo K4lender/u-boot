@@ -12,6 +12,7 @@
 #include <fdt_support.h>
 #include <spl.h>
 #include <asm/arch/k3-ddr.h>
+#include <k3-dev.h>
 
 #if IS_ENABLED(CONFIG_SET_DFU_ALT_INFO)
 void set_dfu_alt_info(char *interface, char *devstr)
