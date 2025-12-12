@@ -107,6 +107,12 @@ int board_late_init(void)
     /* Eğer USB/DFU modunda boot ettiyse */
     if (boot_device == BOOT_DEVICE_DFU || boot_device == BOOT_DEVICE_USB) {
         printf("T3 GEM O1: USB Peripheral mode detected\n");
+        
+        /* ÖNEMLİ: eMMC'yi initialize et - DFU için gerekli */
+        printf("T3 GEM O1: Initializing eMMC for DFU...\n");
+        run_command("mmc dev 0", 0);
+        run_command("mmc info", 0);
+        
         printf("T3 GEM O1: Entering automatic DFU mode for full disk flashing\n");
         printf("T3 GEM O1: Host can now flash with: sudo dfu-util -d 0451:6165 -a rawemmc -D image.img\n");
         
@@ -114,11 +120,19 @@ int board_late_init(void)
         env_set("dfu_alt_info_emmc", "rawemmc raw 0 0x40000000");
         env_set("dfu_alt_info", "rawemmc raw 0 0x40000000");
         
-        /* Otomatik DFU modunu başlat - TIMEOUT YOK (sürekli bekle) */
+        /* DFU exit handler ayarla - flash tamamlandığında çalışacak */
+        env_set("dfu_alt_info", "rawemmc raw 0 0x40000000");
+        
+        /* Otomatik DFU modunu başlat + Flash sonrası reboot */
         env_set("bootcmd", 
             "echo 'T3 GEM O1 - DFU Mode (waiting for host...)';"
             "echo 'Use: sudo dfu-util -d 0451:6165 -a rawemmc -D full-disk.img';"
-            "dfu 0 mmc 0");
+            "mmc dev 0;"
+            "dfu 0 mmc 0;"
+            "echo '';"
+            "echo 'DFU completed! Rebooting from eMMC in 3 seconds...';"
+            "sleep 3;"
+            "reset");
         
         /* Boot delay 0 - hemen başla */
         env_set("bootdelay", "0");
