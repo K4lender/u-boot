@@ -19,14 +19,17 @@
 #if IS_ENABLED(CONFIG_SET_DFU_ALT_INFO)
 void set_dfu_alt_info(char *interface, char *devstr)
 {
-    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT))
+    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)) {
         env_set("dfu_alt_info", update_info.dfu_string);
-    else {
-        /* DFU için rawemmc - tam disk erişimi */
-        env_set("dfu_alt_info", "rawemmc raw 0 0x40000000");
+    } else {
+        const char *s = env_get("dfu_alt_info_emmc");
+        if (!s)
+            s = "rawemmc raw 0 0";  /* default */
+        env_set("dfu_alt_info", s);
     }
 }
 #endif
+
 
 int board_init(void)
 {
@@ -111,28 +114,31 @@ int board_late_init(void)
         /* ÖNEMLİ: eMMC'yi initialize et - DFU için gerekli */
         printf("T3 GEM O1: Initializing eMMC for DFU...\n");
         run_command("mmc dev 0", 0);
+        run_command("mmc rescan", 0);
         run_command("mmc info", 0);
-        
+
         printf("T3 GEM O1: Entering automatic DFU mode for full disk flashing\n");
         printf("T3 GEM O1: Host can now flash with: sudo dfu-util -d 0451:6165 -a rawemmc -D image.img\n");
         
-        /* DFU alt info ayarla - tam disk (rawemmc) */
-        env_set("dfu_alt_info_emmc", "rawemmc raw 0 0x40000000");
-        env_set("dfu_alt_info", "rawemmc raw 0 0x40000000");
-        
-        /* DFU exit handler ayarla - flash tamamlandığında çalışacak */
-        env_set("dfu_alt_info", "rawemmc raw 0 0x40000000");
-        
+        env_set("dfu_alt_info_emmc", "rawemmc raw 0 0");
+        env_set("dfu_alt_info", "rawemmc raw 0 0");
+
+
         /* Otomatik DFU modunu başlat + Flash sonrası reboot */
-        env_set("bootcmd", 
-            "echo 'T3 GEM O1 - DFU Mode (waiting for host...)';"
-            "echo 'Use: sudo dfu-util -d 0451:6165 -a rawemmc -D full-disk.img';"
-            "mmc dev 0;"
-            "dfu 0 mmc 0;"
-            "echo '';"
-            "echo 'DFU completed! Rebooting from eMMC in 3 seconds...';"
-            "sleep 3;"
-            "reset");
+        env_set("bootcmd",
+    "echo 'T3 GEM O1 - DFU Mode (waiting for host...)';"
+    "echo 'Use: sudo dfu-util -d 0451:6165 -a rawemmc -D full-disk.img';"
+    "mmc dev 0; mmc rescan;"
+    "setenv dfu_alt_info ${dfu_alt_info_emmc};"
+    "while true; do "
+        "if dfu 0 mmc 0; then "
+            "echo 'DFU completed! Rebooting...'; sleep 1; reset; "
+        "else "
+            "echo 'DFU aborted/failed. Staying in DFU...'; sleep 1; "
+        "fi; "
+    "done");
+
+
         
         /* Boot delay 0 - hemen başla */
         env_set("bootdelay", "0");
