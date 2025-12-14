@@ -2,7 +2,7 @@
 /*
  * https://docs.t3gemstone.org/tr/boards/obsidian/introduction
  *
- * Copyright (C) 2024 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2024 Texas Instruments Incorporated
  */
 
 #include <asm/arch/hardware.h>
@@ -15,37 +15,38 @@
 #include <command.h>
 #include <linux/libfdt.h>
 
-
+/* ----------------------------------------------------------- */
+/* DFU ALT INFO */
+/* ----------------------------------------------------------- */
 #if IS_ENABLED(CONFIG_SET_DFU_ALT_INFO)
 void set_dfu_alt_info(char *interface, char *devstr)
 {
-    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)) {
-        env_set("dfu_alt_info", update_info.dfu_string);
-    } else {
-        const char *s = env_get("dfu_alt_info_emmc");
-        if (!s)
-            s = "rawemmc raw 0 0";  /* default */
-        env_set("dfu_alt_info", s);
-    }
+    /* Güvenli varsayılan: SADECE rootfs (.img) */
+    if (!env_get("dfu_alt_info"))
+        env_set("dfu_alt_info", "rootfs raw 0 0x100000");
 }
 #endif
-
 
 int board_init(void)
 {
     return 0;
 }
 
+/* ----------------------------------------------------------- */
+/* FIT CONFIG */
+/* ----------------------------------------------------------- */
 #if defined(CONFIG_SPL_LOAD_FIT)
 int board_fit_config_name_match(const char *name)
 {
     if (!strcmp(name, "k3-am67a-t3-gem-o1"))
         return 0;
-
     return -1;
 }
 #endif
 
+/* ----------------------------------------------------------- */
+/* DRAM */
+/* ----------------------------------------------------------- */
 int dram_init(void)
 {
     return fdtdec_setup_mem_size_base();
@@ -56,102 +57,96 @@ int dram_init_banksize(void)
     return fdtdec_setup_memory_banksize();
 }
 
+/* ----------------------------------------------------------- */
+/* SPL FIXUPS */
+/* ----------------------------------------------------------- */
 #if defined(CONFIG_XPL_BUILD)
 void spl_perform_fixups(struct spl_image_info *spl_image)
 {
-    u32 bootdev;
-
-    if (IS_ENABLED(CONFIG_K3_DDRSS)) {
-        if (IS_ENABLED(CONFIG_K3_INLINE_ECC))
-            fixup_ddr_driver_for_ecc(spl_image);
-    } else {
-        fixup_memory_node(spl_image);
-    }
-
-    /* Boot device'ı al ve kaydet */
-    bootdev = spl_boot_device();
-
-    /* Device tree'ye ekle */
+    u32 bootdev = spl_boot_device();
     void *fdt = (void *)(uintptr_t)spl_image->fdt_addr;
-    if (fdt) {
-        int chosen = fdt_path_offset(fdt, "/chosen");
-        if (chosen < 0)
-            chosen = fdt_add_subnode(fdt, 0, "chosen");
-        if (chosen >= 0)
-            fdt_setprop_u32(fdt, chosen, "u-boot,spl-boot-device", bootdev);
-    }
+
+    if (!fdt)
+        return;
+
+    int chosen = fdt_path_offset(fdt, "/chosen");
+    if (chosen < 0)
+        chosen = fdt_add_subnode(fdt, 0, "chosen");
+
+    if (chosen >= 0)
+        fdt_setprop_u32(fdt, chosen, "u-boot,spl-boot-device", bootdev);
 }
 #endif
 
+/* ----------------------------------------------------------- */
+/* BOARD LATE INIT */
+/* ----------------------------------------------------------- */
 #if IS_ENABLED(CONFIG_BOARD_LATE_INIT)
 int board_late_init(void)
 {
-    char fdtfile[50];
-    u32 boot_device = BOOT_DEVICE_MMC1; /* default */
+    char fdtfile[64];
+    u32 boot_device = BOOT_DEVICE_MMC1;
     int nodeoffset;
     const u32 *boot_dev_prop;
 
-    /* Device tree ayarla */
+    /* DTB */
     snprintf(fdtfile, sizeof(fdtfile), "%s.dtb", CONFIG_DEFAULT_DEVICE_TREE);
     env_set("fdtfile", fdtfile);
 
-    /* Boot device'ı device tree'den oku */
+    /* SPL boot device */
     nodeoffset = fdt_path_offset(gd->fdt_blob, "/chosen");
     if (nodeoffset >= 0) {
-        boot_dev_prop = fdt_getprop(gd->fdt_blob, nodeoffset, 
-                                     "u-boot,spl-boot-device", NULL);
+        boot_dev_prop = fdt_getprop(gd->fdt_blob, nodeoffset,
+                                    "u-boot,spl-boot-device", NULL);
         if (boot_dev_prop)
             boot_device = fdt32_to_cpu(*boot_dev_prop);
     }
 
-    /* Debug: boot device'ı göster */
     printf("T3 GEM O1: Boot device = 0x%x\n", boot_device);
 
-    /* Eğer USB/DFU modunda boot ettiyse */
+    /* ------------------------------------------------------- */
+    /* DFU MODE */
+    /* ------------------------------------------------------- */
     if (boot_device == BOOT_DEVICE_DFU || boot_device == BOOT_DEVICE_USB) {
-        printf("T3 GEM O1: USB Peripheral mode detected\n");
-        
-        /* ÖNEMLİ: eMMC'yi initialize et - DFU için gerekli */
-        printf("T3 GEM O1: Initializing eMMC for DFU...\n");
+        printf("T3 GEM O1: USB DFU mode detected\n");
+
+        /* eMMC hazırla */
         run_command("mmc dev 0", 0);
         run_command("mmc rescan", 0);
         run_command("mmc info", 0);
 
-        printf("T3 GEM O1: Entering automatic DFU mode for full disk flashing\n");
-        printf("T3 GEM O1: Host can now flash with: sudo dfu-util -d 0451:6165 -a rawemmc -D image.img\n");
-        
-        env_set("dfu_alt_info_emmc", "rawemmc raw 0 0");
-        env_set("dfu_alt_info", "rawemmc raw 0 0");
+        /* SADECE ROOTFS (.img) */
+        env_set("dfu_alt_info", "rootfs raw 0 0x100000");
 
+        printf("DFU MODE: rootfs (.img)\n");
+        printf("Host command:\n");
+        printf("sudo dfu-util -d 0451:6165 -a rootfs -D gemstone-minimal.img -e\n");
 
-        /* Otomatik DFU modunu başlat + Flash sonrası reboot */
+        /* DFU loop:
+         * - Host -e (detach) gönderirse dfu döner
+         * - reset atılır
+         */
         env_set("bootcmd",
-    "echo 'T3 GEM O1 - DFU Mode (waiting for host...)';"
-    "echo 'Use: sudo dfu-util -d 0451:6165 -a rawemmc -D full-disk.img';"
-    "mmc dev 0; mmc rescan;"
-    "setenv dfu_alt_info ${dfu_alt_info_emmc};"
-    "while true; do "
-        "if dfu 0 mmc 0; then "
-            "echo 'DFU completed! Rebooting...'; sleep 1; reset; "
-        "else "
-            "echo 'DFU aborted/failed. Staying in DFU...'; sleep 1; "
-        "fi; "
-    "done");
+            "echo 'T3 GEM O1 - DFU (rootfs only)';"
+            "mmc dev 0; mmc rescan;"
+            "while true; do "
+                "if dfu 0 mmc 0; then "
+                    "echo 'DFU done, rebooting...'; sleep 1; reset; "
+                "else "
+                    "echo 'DFU aborted, waiting...'; sleep 1; "
+                "fi; "
+            "done"
+        );
 
-
-        
-        /* Boot delay 0 - hemen başla */
         env_set("bootdelay", "0");
-    } else {
-        /* Normal boot mode - eMMC/SD */
-        printf("T3 GEM O1: Normal boot mode\n");
-        
-        /* Normal boot ayarları */
+    }
+    /* ------------------------------------------------------- */
+    /* NORMAL BOOT */
+    /* ------------------------------------------------------- */
+    else {
+        printf("T3 GEM O1: Normal boot\n");
         env_set("mmcdev", "0");
         env_set("bootdev", "mmc");
-        
-        /* Normal bootcmd - .env dosyasındaki bootcmd kullanılacak */
-        /* bootdelay default değerde kalacak */
     }
 
     return 0;
