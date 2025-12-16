@@ -42,7 +42,7 @@
 };
 
 &usb0 {
-	dr_mode = "peripheral";
+	dr_mode = "otg";
 	usb-role-switch;
 	bootph-pre-ram;
 };
