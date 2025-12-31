@@ -17,10 +17,13 @@
 #if IS_ENABLED(CONFIG_SET_DFU_ALT_INFO)
 void set_dfu_alt_info(char *interface, char *devstr)
 {
-    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT))
+    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT)) {
         env_set("dfu_alt_info", update_info.dfu_string);
-    else if (!strcmp(interface, "mmc") && !strcmp(devstr, "0"))
+    } else if (!strcmp(interface, "mmc") && !strcmp(devstr, "0")) {
+        // Raw eMMC access for complete image flashing (WIC file)
+        // 0x1D1C000 blocks = ~3.7 GB (sufficient for AM67 eMMC)
         env_set("dfu_alt_info", "rawemmc raw 0 0 0x1D1C000");
+    }
 }
 #endif
 
@@ -99,53 +102,59 @@ int board_late_init(void)
 
 	if (pinst && len == sizeof(fdt32_t)) {
 		u32 boot_media = fdt32_to_cpu(*pinst);
+		
+		printf("Boot mode detected: 0x%x\n", boot_media);
 
 		switch (boot_media)
 		{
-			case 0xFF:
-			{
-				env_set("mmcdev", "0");
-				env_set("bootdev", "eth");
-				break;
-			}
+		case BOOT_DEVICE_ETHERNET_RGMII:
+			env_set("mmcdev", "0");
+			env_set("bootdev", "eth");
+			break;
 
-			case 0x08:
-			{
-				// sdcard
-				env_set("mmcdev", "1");
-				env_set("bootdev", "mmc");
-				break;
-			}
+		case BOOT_DEVICE_MMC:
+			// sdcard
+			env_set("mmcdev", "1");
+			env_set("bootdev", "mmc");
+			break;
 
-			case 0x09:
-			{
-				// emmc
-				env_set("mmcdev", "0");
-				env_set("bootdev", "mmc");
-				break;
-			}
+		case BOOT_DEVICE_EMMC:
+			// emmc
+			env_set("mmcdev", "0");
+			env_set("bootdev", "mmc");/home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so /home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so.1.0 /home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so.map /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so.1.0 /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so.map
+			break;
 
-				case 0x0A:  // veya BOOT_DEVICE_DFU
-			{
-				// DFU mode
-				env_set("mmcdev", "0");
-				env_set("bootdev", "dfu");
-				break;
-			}
+		case BOOT_DEVICE_DFU:
+			// Primary DFU mode (0x0A)
+            printf("DFU mode activated!\n");
 
-			case 0x2A:  // veya BOOT_DEVICE_USB
-			{
-				// USB DFU mode
-				env_set("mmcdev", "0");
-				env_set("bootdev", "dfu");
-				break;
-			}
+            env_set("mmcdev", "0");
+            env_set("bootdev", "dfu");
+            
+            // Set raw eMMC target for full image writing
+            env_set("dfu_alt_info", "rawemmc raw 0 0 0x1D1C000");
+            
+            // Auto-start DFU without user intervention
+            env_set("bootcmd", "echo === DFU Mode: Raw eMMC Flash ===; echo Waiting for USB host...; echo 'Use: dfu-util -a rawemmc -D image.wic'; dfu 0 mmc 0");
+            
+            // Disable distro boot to prevent MMC scanning
+            env_set("distro_bootcmd", "");
+            break;
 
-			default:
-			{
-				printf("Unknown boot method: %u\n", boot_media);
-				break;
-			}
+		case BOOT_DEVICE_USB:
+			// Primary USB mode (0x2A)
+			printf("USB mode activated!\n");
+			env_set("mmcdev", "0");
+			env_set("bootdev", "mmc");
+			env_set("dfu_mmcdev", "0");
+			env_set("dfu_autoboot", "1");
+			env_set("dfu_alt_info_emmc", "boot part 0 1; rootfs part 0 2");
+			env_set("dfu_alt_info", "boot part 0 1; rootfs part 0 2");
+			break;
+
+		default:
+			printf("Unknown boot method: 0x%x\n", boot_media);
+			break;
 		}
 	}
 
