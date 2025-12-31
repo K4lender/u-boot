@@ -125,19 +125,23 @@ int board_late_init(void)
 			break;
 
 		case BOOT_DEVICE_DFU:
-			// Primary DFU mode (0x0A)
-            printf("DFU mode activated!\n");
+			printf("DFU mode activated!\n");
 
             env_set("mmcdev", "0");
             env_set("bootdev", "dfu");
             
-            // Set raw eMMC target for full image writing
-            env_set("dfu_alt_info", "rawemmc raw 0 0 0x1D1C000");
+            // Set raw eMMC target with correct syntax
+            // Format: "name raw <start> <size> mmcpart <dev>"
+            env_set("dfu_alt_info", "rawemmc raw 0x0 0x1D1C000 mmcpart 0");
             
-            // Auto-start DFU without user intervention
-            env_set("bootcmd", "echo === DFU Mode: Raw eMMC Flash ===; echo Waiting for USB host...; echo 'Use: dfu-util -a rawemmc -D image.wic'; dfu 0 mmc 0");
+            // Auto-start DFU
+            env_set("bootcmd", 
+                "echo === DFU Mode: Raw eMMC Flash ===; "
+                "echo Waiting for USB host...; "
+                "echo 'Use: dfu-util -a rawemmc -D image.wic'; "
+                "dfu 0 mmc 0");
             
-            // Disable distro boot to prevent MMC scanning
+            // Disable distro boot
             env_set("distro_bootcmd", "");
             break;
 
