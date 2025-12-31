@@ -12,12 +12,15 @@
 #include <fdt_support.h>
 #include <spl.h>
 #include <asm/arch/k3-ddr.h>
+#include <asm/arch/am62a_spl.h>
 
 #if IS_ENABLED(CONFIG_SET_DFU_ALT_INFO)
 void set_dfu_alt_info(char *interface, char *devstr)
 {
-	if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT))
-		env_set("dfu_alt_info", update_info.dfu_string);
+    if (IS_ENABLED(CONFIG_EFI_HAVE_CAPSULE_SUPPORT))
+        env_set("dfu_alt_info", update_info.dfu_string);
+    else if (!strcmp(interface, "mmc") && !strcmp(devstr, "0"))
+        env_set("dfu_alt_info", "rawemmc raw 0 0 0x1D1C000");
 }
 #endif
 
@@ -119,6 +122,22 @@ int board_late_init(void)
 				// emmc
 				env_set("mmcdev", "0");
 				env_set("bootdev", "mmc");
+				break;
+			}
+
+				case 0x0A:  // veya BOOT_DEVICE_DFU
+			{
+				// DFU mode
+				env_set("mmcdev", "0");
+				env_set("bootdev", "dfu");
+				break;
+			}
+
+			case 0x2A:  // veya BOOT_DEVICE_USB
+			{
+				// USB DFU mode
+				env_set("mmcdev", "0");
+				env_set("bootdev", "dfu");
 				break;
 			}
 
