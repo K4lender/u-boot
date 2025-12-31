@@ -121,7 +121,7 @@ int board_late_init(void)
 		case BOOT_DEVICE_EMMC:
 			// emmc
 			env_set("mmcdev", "0");
-			env_set("bootdev", "mmc");/home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so /home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so.1.0 /home/akif/Videolar/edge-ai/usr/lib/libtidl_onnxrt_EP.so.map /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so.1.0 /home/akif/Videolar/edge-ai/usr/lib/libtidl_tfl_delegate.so.map
+			env_set("bootdev", "mmc");
 			break;
 
 		case BOOT_DEVICE_DFU:
