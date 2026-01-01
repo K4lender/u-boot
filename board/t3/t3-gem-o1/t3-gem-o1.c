@@ -134,12 +134,27 @@ int board_late_init(void)
             // Format: "name raw <start> <size> mmcpart <dev>"
             env_set("dfu_alt_info", "rawemmc raw 0x0 0x1D1C000 mmcpart 0");
             
-            // Auto-start DFU
+            // DFU sonrası boot komutu
+            env_set("bootcmd_dfu_post",
+                "echo DFU complete - Attempting boot...; "
+                "mmc dev 0; "
+                "if load mmc 0:1 ${loadaddr} Image; then "
+                    "echo Kernel found, booting...; "
+                    "load mmc 0:1 ${fdtaddr} k3-am67a-t3-gem-o1.dtb; "
+                    "load mmc 0:1 ${initrdaddr} gemstone-image-rd-t3-gem-o1.cpio.gz; "
+                    "setenv bootargs console=ttyS2,115200n8 root=/dev/mmcblk0p2 rw rootfstype=btrfs; "
+                    "booti ${loadaddr} ${initrdaddr}:${filesize} ${fdtaddr}; "
+                "else "
+                    "echo No kernel found - Reset required; "
+                "fi");
+            
+            // Auto-start DFU ve sonrasında boot
             env_set("bootcmd", 
                 "echo === DFU Mode: Raw eMMC Flash ===; "
                 "echo Waiting for USB host...; "
                 "echo 'Use: dfu-util -a rawemmc -D image.wic'; "
-                "dfu 0 mmc 0");
+                "dfu 0 mmc 0; "
+                "run bootcmd_dfu_post");
             
             // Disable distro boot
             env_set("distro_bootcmd", "");
