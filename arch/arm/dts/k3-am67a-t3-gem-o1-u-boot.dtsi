@@ -38,6 +38,7 @@
 
 &usbss0 {
 	bootph-pre-ram;
+	ti,syscon-phy-pll-refclk = <&main_conf 0x4008>;
 	status = "okay";
 };
 
