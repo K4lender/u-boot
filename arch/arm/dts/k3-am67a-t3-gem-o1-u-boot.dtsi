@@ -42,7 +42,6 @@
 
 &usbss0 {
 	bootph-pre-ram;
-	ti,syscon-phy-pll-refclk = <&main_conf 0x4008>;
 	status = "okay";
 };
 
@@ -50,6 +49,14 @@
 	dr_mode = "peripheral";
 	usb-role-switch;
 	bootph-pre-ram;
+};
+
+&usb0_phy_ctrl {
+	bootph-all;
+};
+
+&usb1_phy_ctrl {
+	bootph-all;
 };
 
 &usbss1 {

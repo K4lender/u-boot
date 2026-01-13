@@ -9,7 +9,7 @@ CONFIG_DEFAULT_DEVICE_TREE="ti/k3-am67a-t3-gem-o1"
 CONFIG_SPL_OF_LIST="ti/k3-am67a-t3-gem-o1"
 CONFIG_OF_LIST="ti/k3-am67a-t3-gem-o1"
 
-CONFIG_BOOTCOMMAND="run envboot; run distro_bootcmd"
+CONFIG_BOOTCOMMAND="if test ${bootdev} = dfu; then run bootcmd_dfu; fi; run envboot; run distro_bootcmd"
 CONFIG_EXT4_WRITE=y
 CONFIG_LZO=y
 CONFIG_AUTOBOOT_KEYED=y
