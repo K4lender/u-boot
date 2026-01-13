@@ -122,6 +122,14 @@ int board_late_init(void)
 				break;
 			}
 
+			case 0x0A:
+			{
+				// dfu
+				env_set("mmcdev", "0");
+				env_set("bootdev", "dfu");
+				break;
+			}
+
 			default:
 			{
 				printf("Unknown boot method: %u\n", boot_media);
