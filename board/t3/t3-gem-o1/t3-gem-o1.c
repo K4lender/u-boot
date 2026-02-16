@@ -121,6 +121,14 @@ int board_late_init(void)
 				env_set("bootdev", "mmc");
 				break;
 			}
+			
+			case 0x0A:
+			{
+				// dfu
+				env_set("mmcdev", "0");
+				env_set("bootdev", "dfu");
+				break;
+			}
 
 			default:
 			{

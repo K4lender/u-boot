@@ -38,10 +38,12 @@
 
 &usbss0 {
 	bootph-pre-ram;
+	status = "okay";
 };
 
 &usb0 {
 	dr_mode = "peripheral";
+	usb-role-switch;
 	bootph-pre-ram;
 };
 
